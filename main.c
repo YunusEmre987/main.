@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -8,6 +7,14 @@
 
 #define ROWS 21
 #define COLS 57
+
+
+#define SECS_PER_TICK 0.1
+#define PSG_QUEUE_MAX_WAIT_TICKS 1
+
+#define FPS 10                      // Daha sık çizim
+#define FRAME_DELAY_MS (1000 / FPS) // Sleep() için ms cinsinden
+
 
 #define BUS_STOPS 16
 #define BUS_LINES 6
@@ -22,8 +29,6 @@
 #define PASSENGERS_IN_QUEUE 15
 #define SECS_PER_TICK 0.5
 #define PSG_QUEUE_MAX_WAIT_TICKS 1
-#define FPS 2
-#define FRAME_MS (1/FPS*1000)
 
 #define ROAD_CHAR ' '
 #define OBSTACLE_CHAR '#'
@@ -171,7 +176,7 @@ PsgNode* psgnode_alloc(Passenger psg) {
 PsgQueue psgqueue_create() {
 	return (PsgQueue) {
 		.rear = NULL,
-		.front = NULL
+			.front = NULL
 	};
 }
 
@@ -235,8 +240,8 @@ void psgqueue_remove_node(PsgQueue* queue, PsgNode* node) {
 LuggageList luggagelist_create() {
 	return (LuggageList) {
 		.items = NULL,
-		.count = 0,
-		.capacity = 0
+			.count = 0,
+			.capacity = 0
 	};
 }
 
@@ -279,7 +284,7 @@ Vector2 dir_from_to_stop(BusStop from, BusStop to) {
 	int y_diff = to.position.y - from.position.y;
 	return (Vector2) {
 		(x_diff > 0) - (x_diff < 0),
-		(y_diff > 0) - (y_diff < 0)
+			(y_diff > 0) - (y_diff < 0)
 	};
 }
 
@@ -300,30 +305,30 @@ Passenger psg_generate_random(SimulationData* sim_data) {
 	for (size_t i = 0; i < luggage_count; i++) {
 		luggagelist_append(&luggages, (Luggage) {
 			.id = rand() % 1000,
-			.owner_id = id,
+				.owner_id = id,
 		});
 	}
 
 	return (Passenger) {
 		.id = id,
-		.luggages = luggages,
-		.starting_stop = target_line.stops[starting_stop_idx],
-		.target_stop = target_line.stops[target_stop_idx],
-		.line = target_line.stops[0]
+			.luggages = luggages,
+			.starting_stop = target_line.stops[starting_stop_idx],
+			.target_stop = target_line.stops[target_stop_idx],
+			.line = target_line.stops[0]
 	};
 }
 
 Bus bus_create(BusStop* all_stops, BusLine line, BusDirInLine line_dir) {
 	size_t stop_idx_in_line = line_dir == DIR_FIRST_TO_LAST ? 0 : line.stop_count - 1;
 	size_t stop_idx_in_city = line.stops[stop_idx_in_line] - 'A';
-	return (Bus){
+	return (Bus) {
 		.position = all_stops[stop_idx_in_city].position,
-		.line_direction = line_dir,
-		.passenger_count = 0,
-		.luggages = luggagelist_create(),
-		.line = line,
-		.arrived_at_stop = &all_stops[stop_idx_in_city],
-		.ticks_to_move = TICKS_PER_BUS_MOVEMENT
+			.line_direction = line_dir,
+			.passenger_count = 0,
+			.luggages = luggagelist_create(),
+			.line = line,
+			.arrived_at_stop = &all_stops[stop_idx_in_city],
+			.ticks_to_move = TICKS_PER_BUS_MOVEMENT
 	};
 }
 
@@ -371,7 +376,7 @@ SimulationData* simdata_alloc() {
 }
 
 void simdata_destroy(SimulationData* sim_data) {
-	PsgNode* node = sim_data->psg_queue.front; 
+	PsgNode* node = sim_data->psg_queue.front;
 	while (node) {
 		luggagelist_destroy(&node->value.luggages);
 		node = node->next;
@@ -426,7 +431,7 @@ void simdata_bus_advance_tick(SimulationData* sim_data, Bus* bus) {
 					break;
 				}
 			}
-			
+
 			if (!psg_should_get_on) {
 				psg_node = psg_node->next;
 				continue;
@@ -601,6 +606,9 @@ void draw_time(SimulationData* sim_data, size_t gap) {
 	if (sim_data->is_paused) {
 		printf(" (Paused)");
 	}
+	else {
+		printf("         ");
+	}
 }
 
 void draw_map(SimulationData* sim_data) {
@@ -654,7 +662,7 @@ void draw_new_psg(SimulationData* sim_data, size_t gap) {
 	printf("---------------");
 	move_cursor(COLS + gap - 2, 4);
 	printf("> ");
-	
+
 	PsgNode* psg_node = sim_data->psg_queue.front;
 	int x = COLS + gap + PASSENGERS_IN_QUEUE - 1;
 	place_char(x + 2, 4, '>');
@@ -688,7 +696,7 @@ void draw_selection(SimulationData* sim_data, int gap) {
 		char bus_no = b->line_direction == DIR_FIRST_TO_LAST ? '1' : '2';
 
 		move_cursor(COLS + gap, 11);
-		printf("Bus [%c%c] Passengers:", bus_letter, bus_no);
+		printf("Bus [%c%c] Passengers:       ", bus_letter, bus_no);
 
 		int y = 12;
 		for (size_t i = 0; i < b->passenger_count; i++) {
@@ -733,7 +741,8 @@ void draw_selection(SimulationData* sim_data, int gap) {
 		printf("Bus Stop [%c] Passengers:\n", s->name);
 		int y = 12;
 		PsgNode* node = s->passengers.front;
-		while (node) {
+		int max_passengers_to_display = 15;
+		while (node && max_passengers_to_display--) {
 			move_cursor(COLS + gap, y);
 			printf("%3d: Line%c %c-%c", node->value.id, node->value.line, node->value.starting_stop, node->value.target_stop);
 			switch (node->value.luggages.count)
@@ -745,17 +754,21 @@ void draw_selection(SimulationData* sim_data, int gap) {
 			node = node->next;
 			y++;
 		}
+		if (node) {
+			move_cursor(COLS + gap, y);
+			printf("(...)");
+		}
 	}
 }
 
-void draw_screen(SimulationData* sim_data) {
+/*void draw_screen(SimulationData* sim_data) {
 	clear_screen();
 	draw_map(sim_data);
 	draw_time(sim_data, 4);
 	draw_new_psg(sim_data, 4);
 	draw_stats(sim_data, 2);
 	draw_selection(sim_data, 2);
-}
+}*/
 
 void select_next(SimulationData* sim_data) {
 	Vector2 best_pos = { INT_MAX, INT_MAX };
@@ -841,14 +854,33 @@ void select_prev(SimulationData* sim_data) {
 	}
 }
 
+void clear_screen_fast() {
+	// Sağ paneli boşluk kullanarak temizle
+	for (size_t i = 12; i < 30; i++) {
+		move_cursor(COLS + 1, i);
+		printf("                              ");
+	}
+	move_cursor(0, 0); // Ekranı silmeden en üste git
+}
+
+void draw_screen(SimulationData* sim_data) {
+	clear_screen_fast();
+	draw_map(sim_data);
+	draw_time(sim_data, 4);
+	draw_new_psg(sim_data, 4);
+	draw_stats(sim_data, 2);
+	draw_selection(sim_data, 2);
+	move_cursor(0, 0);
+}
 
 int main() {
 	SimulationData* sim_data = simdata_alloc();
-
-	ULONGLONG last_update = GetTickCount64();
+	ULONGLONG last_frame_duration = 0;
 	draw_screen(sim_data);
-
 	while (true) {
+		ULONGLONG frame_start = GetTickCount64();
+
+		
 		if (_kbhit()) {
 			switch (_getch()) {
 			case 'r':
@@ -863,16 +895,24 @@ int main() {
 			case 'W':
 				select_next(sim_data);
 				break;
+			case 'x':
+			case 'X':
+				simdata_advance_tick(sim_data);
+				break;
 			}
 			draw_screen(sim_data);
 		}
 
-		ULONGLONG curr = GetTickCount64();
-		if (simdata_advance_secs(sim_data, (curr - last_update) / 1000.0)) {
+		// Simulasyon sayacını ilerlet
+		if (simdata_advance_secs(sim_data, last_frame_duration / 1000.0f)) {
+			// Simulasyon ilerlediyse ekranı yeniden çiz
 			draw_screen(sim_data);
 		}
 
-		last_update = curr;
+		// 60 FPS uyumlu bekleme
+		Sleep(FRAME_DELAY_MS);
+		last_frame_duration = GetTickCount64() - frame_start;
 	}
+
 	simdata_destroy(sim_data);
 }
